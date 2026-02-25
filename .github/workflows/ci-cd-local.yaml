@@ -1,0 +1,70 @@
+name: CI-CD Local (K8s Desktop)
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  ci:
+    name: Build & Test (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build & Test
+        run: |
+          chmod +x mvnw
+          ./mvnw -q clean test
+
+  cd_local:
+    name: Build Image & Deploy (CD Localhost)
+    needs: ci
+    runs-on: [self-hosted, local-k8s]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show tool versions (debug)
+        shell: powershell
+        run: |
+          Write-Host "Docker:"; docker version
+          Write-Host "Kubectl:"; kubectl version --client
+          Write-Host "Context:"; kubectl config current-context
+          kubectl get nodes
+
+      - name: Build JAR
+        shell: powershell
+        run: |
+          .\mvnw.cmd -q clean package
+
+      - name: Build Docker image (local)
+        shell: powershell
+        run: |
+          $TAG = "${{ github.run_number }}"
+          docker build -t hello-service:$TAG .
+          docker images hello-service --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}"
+
+      - name: Deploy to Kubernetes Desktop
+        shell: powershell
+        run: |
+          $TAG = "${{ github.run_number }}"
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl -n hello set image deployment/hello-service hello-service=hello-service:$TAG
+          kubectl -n hello rollout status deployment/hello-service
+
+      - name: Smoke test (port-forward + curl)
+        shell: powershell
+        run: |
+          # Port-forward in background
+          Start-Process powershell -ArgumentList "-NoProfile -Command kubectl -n hello port-forward svc/hello-service 8080:80" -WindowStyle Hidden
+          Start-Sleep -Seconds 3
+          curl http://localhost:8080/hello
