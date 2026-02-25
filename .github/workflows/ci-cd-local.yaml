@@ -31,6 +31,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: K8s preflight (force docker-desktop context)
+        shell: powershell -NoProfile -ExecutionPolicy Bypass
+        run: |
+            # Fuerza a usar el kubeconfig del usuario del runner (evita configs raros)
+            $env:KUBECONFIG = "$HOME\.kube\config"
+            Write-Host "KUBECONFIG=$env:KUBECONFIG"
+
+            kubectl config get-contexts
+            kubectl config use-context docker-desktop
+
+            kubectl cluster-info
+            kubectl get nodes
+
       - name: Show tool versions (debug)
         shell: powershell
         run: |
