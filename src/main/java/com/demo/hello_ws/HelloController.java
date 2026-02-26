@@ -11,6 +11,6 @@ public class HelloController {
     }
     @GetMapping("/hello")
     public String hello() {
-        return "Hola Mundo! con CI/CD: 17";
+        return "Hola Mundo! con CI/CD: 18";
     }
 }
