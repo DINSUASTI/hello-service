@@ -70,7 +70,14 @@ jobs:
         run: |
           TAG="${{ github.run_number }}"
           docker build -t hello-service:$TAG .
-          docker images hello-service
+
+          docker save hello-service:$TAG -o /tmp/hello-service.tar
+
+          # Importar a K3s (containerd)
+          sudo k3s ctr images import /tmp/hello-service.tar
+
+          # Validación
+          sudo k3s ctr images list | grep hello-service
 
       - name: Deploy to Kubernetes
         run: |
