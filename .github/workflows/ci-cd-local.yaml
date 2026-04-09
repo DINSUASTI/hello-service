@@ -8,6 +8,9 @@ jobs:
   ci:
     name: Build & Test (CI)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -27,19 +30,26 @@ jobs:
     name: Build Image & Deploy (CD Localhost)
     needs: ci
     runs-on: [self-hosted, local-k8s]
+    env:
+      KUBECONFIG: /home/dinsuasti/.kube/config
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: K8s preflight
+      - name: Validate kubeconfig
         run: |
-          export KUBECONFIG=$HOME/.kube/config
           echo "KUBECONFIG=$KUBECONFIG"
+          ls -l "$KUBECONFIG"
+          test -r "$KUBECONFIG"
           kubectl config get-contexts
           kubectl config current-context
           kubectl cluster-info
-          kubectl get nodes
+          kubectl get nodes -o wide
 
       - name: Show tool versions
         run: |
@@ -69,12 +79,12 @@ jobs:
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/deployment.yaml
           kubectl -n hello set image deployment/hello-service hello-service=hello-service:$TAG
-          kubectl -n hello rollout status deployment/hello-service
+          kubectl -n hello rollout status deployment/hello-service --timeout=180s
 
       - name: Smoke test
         run: |
-          kubectl -n hello port-forward svc/hello-service 8080:80 > /tmp/pf.log 2>&1 &
+          kubectl -n hello port-forward svc/hello-service 8080:80 >/tmp/pf.log 2>&1 &
           PF_PID=$!
-          sleep 5
-          curl -f http://localhost:8080/actuator/health
-          kill $PF_PID
+          trap "kill $PF_PID || true" EXIT
+          sleep 8
+          curl -fsS http://127.0.0.1:8080/actuator/health
