@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class HelloController {
     @GetMapping("/")
     public String inicio() {
-        return "Welcome 36";
+        return "Welcome 37";
     }
     @GetMapping("/hello")
     public String hello() {
-        return "Hola Mundo! con CI/CD: 36";
+        return "Hola Mundo! con CI/CD: 37";
     }
 }
