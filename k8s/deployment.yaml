@@ -16,7 +16,7 @@ spec:
       containers:
         - name: hello-service
           image: hello-service:latest 
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           readinessProbe:
